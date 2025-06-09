@@ -13,8 +13,7 @@ const (
 
 func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger) error {
 	for {
-		b := make([]byte, BATCHSIZE)
-		n, err := s.Read(b)
+		b, err := ReadMessage(s)
 		if err != nil {
 			if err == io.EOF {
 				l.Printf("connection closed by user")
@@ -46,4 +45,14 @@ func StartDoubleWayContentThrow(s net.Conn, t net.Conn, l *log.Logger) *sync.Wai
 		dropContentThrow(t, s, l)
 	}()
 	return wg
+}
+
+func ReadMessage(s net.Conn) ([]byte, error) {
+	b := make([]byte, BATCHSIZE)
+	n, err := s.Read(b)
+	if err == nil {
+		b = b[:n]
+		return b, nil
+	}
+	return nil, err
 }
