@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	BATCHSIZE = 16700 // tls message size 16384 + auth bytes 256
+	BATCHSIZE = 5000 // tls message size 16384 + auth bytes 256
 )
 
 func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger) error {
@@ -25,7 +25,6 @@ func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger) error {
 			l.Printf("connection error and closed %s", err)
 			return err
 		}
-		b = b[:n]
 		if len(b) != 0 {
 			t.Write(b)
 		}
