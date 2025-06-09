@@ -4,11 +4,12 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
-	"strings"
-	"sync"
+	"os"
 	"tcp_sni_splitter/internal/enumerable"
+	"tcp_sni_splitter/internal/net_extentions"
 )
 
 func main() {
@@ -51,28 +52,21 @@ func handler(c net.Conn) error {
 	} else {
 		return nil
 	}
-	header := string(b[:500])
-	addrOPort := strings.Split(strings.Split(header, " ")[1], ":")[:2]
-	remoteConn, err := net.Dial("tcp", addrOPort[0]+":"+addrOPort[1])
+	targetPeer, err := net_extentions.ExtractTargetPeer(b)
+	if err != nil {
+		fmt.Printf("failing extract target peer address %s", err)
+	}
+	remoteConn, err := net.Dial("tcp", targetPeer.GetTargetUrl())
 	if err != nil {
 		fmt.Printf("failing to open target tcp %s", err)
 	}
 	defer remoteConn.Close()
 
-	if addrOPort[1] == "443" {
+	if net_extentions.IsHttps(targetPeer) {
 		dropBySegments(c, remoteConn)
 	}
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
-	go func() {
-		dropContent(c, remoteConn)
-		defer wg.Done()
-	}()
-
-	go func() {
-		dropContent(remoteConn, c)
-		defer wg.Done()
-	}()
+	l := log.New(os.Stdout, "dpi", 0)
+	wg := net_extentions.StartDoubleWayContentThrow(c, remoteConn, l)
 	wg.Wait()
 	return nil
 }
@@ -100,26 +94,11 @@ func dropBySegments(s net.Conn, t net.Conn) error {
 		}
 		mc, _ := hex.DecodeString("1603")
 		newContent = append(newContent, mc...)
-		newContent = append(newContent, byte(03))
+		newContent = append(newContent, byte(rnd.Intn(10)))
 		newContent = binary.BigEndian.AppendUint16(newContent, uint16(l))
 		newContent = append(newContent, b[0:l]...)
 		b = b[l:]
 	}
 	t.Write(newContent)
 	return nil
-}
-
-func dropContent(s net.Conn, t net.Conn) error {
-	for {
-		b := make([]byte, 5000)
-		n, err := s.Read(b)
-		b = b[:n]
-		if err != nil {
-			return err
-		}
-		if len(b) != 0 {
-			t.Write(b)
-		}
-	}
-
 }

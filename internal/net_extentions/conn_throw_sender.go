@@ -7,19 +7,23 @@ import (
 	"sync"
 )
 
+const (
+	BATCHSIZE = 16700 // tls message size 16384 + auth bytes 256
+)
+
 func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger) error {
 	for {
-		b := make([]byte, 17000)
+		b := make([]byte, BATCHSIZE)
 		n, err := s.Read(b)
-
 		if err != nil {
 			if err == io.EOF {
-				l.Printf("connection successfully closed")
+				l.Printf("connection closed by user")
 				return nil
 			} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
 				l.Printf("connection timeout")
 				return nil
 			}
+			l.Printf("connection error and closed %s", err)
 			return err
 		}
 		b = b[:n]
@@ -27,20 +31,19 @@ func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger) error {
 			t.Write(b)
 		}
 	}
-	return nil
 }
 
 func StartDoubleWayContentThrow(s net.Conn, t net.Conn, l *log.Logger) *sync.WaitGroup {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
-	go func() error {
+	go func() {
 		defer wg.Done()
-		return dropContentThrow(s, t, l)
+		dropContentThrow(s, t, l)
 	}()
 
-	go func() error {
+	go func() {
 		defer wg.Done()
-		return dropContentThrow(s, t, l)
+		dropContentThrow(t, s, l)
 	}()
 	return wg
 }

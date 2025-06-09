@@ -1,0 +1,4 @@
+- Connections pool (with reopen for timeout closed)
+- Connections monitor and closing by service
+- monitoring of connections
+- traffic monitoring
