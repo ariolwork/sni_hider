@@ -1,3 +1,15 @@
-run: go run cmd/main.go
+ifndef $(GOPATH)
+	GOPATH=$(shell go env GOPATH)
+endif
+SHELL = bash
 
-build: go build cmd/main.go -o bin/runner
+%.o: %.mod
+
+run: build
+	@echo "starting service"
+	./bin/runner
+
+build: 
+	@echo "building started"
+	go build -o bin/runner cmd/main.go
+	@echo "project builded"

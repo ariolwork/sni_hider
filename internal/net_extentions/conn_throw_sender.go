@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	BATCHSIZE = 5000 // tls message size 16384 + auth bytes 256
+	BATCHSIZE = 16700 // tls message size 16384 + auth bytes 256
 )
 
 func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger) error {

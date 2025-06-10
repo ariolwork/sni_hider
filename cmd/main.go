@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	l := log.New(os.Stdout, "dpi", 0)
+	l := log.New(os.Stdout, "dpi: ", 0)
 	subscribeListener(l, 3020)
 }
 
