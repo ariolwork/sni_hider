@@ -64,3 +64,14 @@ func ReadMessage(s net.Conn) (Mess, error) {
 	}
 	return nil, err
 }
+
+func readMessageWithoutPool(s net.Conn) (Mess, error) {
+	b := newMess()
+	target := make([]byte, BATCHSIZE)
+	n, err := s.Read(target)
+	if err == nil {
+		b.message = target[:n]
+		return b, nil
+	}
+	return nil, err
+}
