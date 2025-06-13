@@ -16,13 +16,13 @@ var tlsHeader []byte = func() []byte {
 
 func SplitTLSBySegments(b []byte) []byte {
 	if len(b) < 6 {
-		return []byte{}
+		return b
 	}
 	//skip header bytes
 	b = b[5:]
 	if len(b) < 4 {
 		//strange content, bad for seed
-		return []byte{}
+		return b
 	}
 	result := make([]byte, 0, BATCHSIZE)
 	rnd := *rand.New(rand.NewSource(int64(binary.BigEndian.Uint32(b[:4]))))
