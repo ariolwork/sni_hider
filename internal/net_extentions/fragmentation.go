@@ -7,7 +7,7 @@ import (
 )
 
 var tlsHeader []byte = func() []byte {
-	r, err := hex.DecodeString("160303")
+	r, err := hex.DecodeString("160308")
 	if err != nil {
 		panic("bad tls const header")
 	}
