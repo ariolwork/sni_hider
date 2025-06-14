@@ -5,13 +5,16 @@ import (
 	"log"
 	"net"
 	"sync"
+	"tcp_sni_splitter/internal/net_extentions/rec_processors"
 )
 
 const (
 	BATCHSIZE = 16700 // tls message size 16384 + auth bytes 256
 )
 
-func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger) error {
+func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger, conns rec_processors.Buf) error {
+	wg := &sync.WaitGroup{}
+	defer wg.Wait()
 	for {
 		b, err := ReadMessage(s)
 		if err != nil {
@@ -26,22 +29,24 @@ func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger) error {
 			return err
 		}
 		if len(b) != 0 {
-			t.Write(b)
+			wg.Add(1)
+			toSend := &rec_processors.ToSend{B: b, C: t, Wg: wg}
+			conns.Send(toSend)
 		}
 	}
 }
 
-func StartDoubleWayContentThrow(s net.Conn, t net.Conn, l *log.Logger) *sync.WaitGroup {
+func StartDoubleWayContentThrow(s net.Conn, t net.Conn, l *log.Logger, conns rec_processors.Buf) *sync.WaitGroup {
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		dropContentThrow(s, t, l)
+		dropContentThrow(s, t, l, conns)
 	}()
 
 	go func() {
 		defer wg.Done()
-		dropContentThrow(t, s, l)
+		dropContentThrow(t, s, l, conns)
 	}()
 	return wg
 }

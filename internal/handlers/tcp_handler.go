@@ -7,14 +7,16 @@ import (
 	"net"
 	"tcp_sni_splitter/internal/enumerable"
 	"tcp_sni_splitter/internal/net_extentions"
+	"tcp_sni_splitter/internal/net_extentions/rec_processors"
 )
 
 type tcpHandler struct {
-	l *log.Logger
+	l           *log.Logger
+	conWriteBuf rec_processors.Buf
 }
 
 func NewTcpHandler(l *log.Logger) Handler {
-	return &tcpHandler{l: l}
+	return &tcpHandler{l: l, conWriteBuf: rec_processors.New()}
 }
 
 func (h *tcpHandler) Handle(c net.Conn) error {
@@ -44,7 +46,7 @@ func (h *tcpHandler) Handle(c net.Conn) error {
 		}
 	}
 
-	wg := net_extentions.StartDoubleWayContentThrow(c, remoteConn, h.l)
+	wg := net_extentions.StartDoubleWayContentThrow(c, remoteConn, h.l, h.conWriteBuf)
 	wg.Wait()
 	return nil
 }
