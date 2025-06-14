@@ -13,9 +13,8 @@ const (
 )
 
 func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger, conns rec_processors.Buf) error {
-	wg := &sync.WaitGroup{}
-	defer wg.Wait()
 	for {
+		wg := &sync.WaitGroup{}
 		b, err := ReadMessage(s)
 		if err != nil {
 			if err == io.EOF {
@@ -32,6 +31,7 @@ func dropContentThrow(s net.Conn, t net.Conn, l *log.Logger, conns rec_processor
 			wg.Add(1)
 			toSend := &rec_processors.ToSend{B: b, C: t, Wg: wg}
 			conns.Send(toSend)
+			wg.Wait()
 		}
 	}
 }
