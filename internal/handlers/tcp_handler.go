@@ -7,16 +7,15 @@ import (
 	"net"
 	"tcp_sni_splitter/internal/enumerable"
 	"tcp_sni_splitter/internal/net_extentions"
-	"tcp_sni_splitter/internal/net_extentions/handler_buf"
 )
 
 type tcpHandler struct {
 	l                 *log.Logger
-	connProcessorsBuf handler_buf.BufProcessor
+	connProcessorsBuf net_extentions.BufProcessor
 }
 
 func NewTcpHandler(l *log.Logger) Handler {
-	return &tcpHandler{l: l, connProcessorsBuf: handler_buf.New()}
+	return &tcpHandler{l: l, connProcessorsBuf: net_extentions.New()}
 }
 
 func (h *tcpHandler) Handle(c net.Conn) error {
