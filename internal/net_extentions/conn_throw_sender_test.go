@@ -6,11 +6,12 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+	"tcp_sni_splitter/internal/net_extentions/connections_processor"
 	"testing"
 	"time"
 )
 
-var buffer BufProcessor = New()
+var buffer connections_processor.BufProcessor = connections_processor.New()
 
 type mock_conn struct {
 	rnd            *rand.Rand

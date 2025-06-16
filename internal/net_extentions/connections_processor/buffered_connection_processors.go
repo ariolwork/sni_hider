@@ -1,4 +1,4 @@
-package net_extentions
+package connections_processor
 
 import (
 	"context"
@@ -12,21 +12,21 @@ const (
 )
 
 type Connection struct {
-	ToSend   chan []byte
-	Recieved chan []byte
+	ToSend   chan Message
+	Recieved chan Message
 	C        net.Conn
 	Wg       *sync.WaitGroup
 }
 
 func WrapConnection(c net.Conn) *Connection {
-	return &Connection{C: c, Recieved: make(chan []byte, 10), ToSend: make(chan []byte, 10), Wg: &sync.WaitGroup{}}
+	return &Connection{C: c, Recieved: make(chan Message, 10), ToSend: make(chan Message, 10), Wg: &sync.WaitGroup{}}
 }
 
 func WrapConnectionWithCustomWg(c net.Conn, wg *sync.WaitGroup) *Connection {
-	return &Connection{C: c, Recieved: make(chan []byte, 10), ToSend: make(chan []byte, 10), Wg: wg}
+	return &Connection{C: c, Recieved: make(chan Message, 10), ToSend: make(chan Message, 10), Wg: wg}
 }
 
-type buf struct {
+type processorsBuf struct {
 	readCh     chan *Connection
 	writeCh    chan *Connection
 	cancelChan context.Context
@@ -39,12 +39,12 @@ type BufProcessor interface {
 	ProceedConnection(inf *Connection)
 }
 
-func (b *buf) Cancel() {
+func (b *processorsBuf) Cancel() {
 	b.cancel()
 	b.wg.Wait()
 }
 
-func (b *buf) ProceedConnection(inf *Connection) {
+func (b *processorsBuf) ProceedConnection(inf *Connection) {
 	b.readCh <- inf
 	b.writeCh <- inf
 }
@@ -53,7 +53,7 @@ func (b *buf) ProceedConnection(inf *Connection) {
 
 func New() BufProcessor {
 	context, cancel := context.WithCancel(context.Background())
-	item := &buf{make(chan *Connection, GOROUTINESBUF*4), make(chan *Connection, GOROUTINESBUF*4), context, &sync.WaitGroup{}, cancel}
+	item := &processorsBuf{make(chan *Connection, GOROUTINESBUF*4), make(chan *Connection, GOROUTINESBUF*4), context, &sync.WaitGroup{}, cancel}
 	item.wg.Add(GOROUTINESBUF * 2)
 	for i := 0; i < GOROUTINESBUF; i++ {
 		go func() {
@@ -63,8 +63,9 @@ func New() BufProcessor {
 				case <-item.cancelChan.Done():
 					return
 				case i := <-item.writeCh:
-					for bytes := range i.ToSend {
-						i.C.Write(bytes)
+					for mes := range i.ToSend {
+						i.C.Write(mes.GetMessageBytes())
+						mes.Release()
 					}
 					i.Wg.Done()
 				}
@@ -88,7 +89,7 @@ func New() BufProcessor {
 							}
 							close(i.Recieved)
 							break
-						} else if len(b) != 0 {
+						} else if len(b.GetMessageBytes()) != 0 {
 							i.Recieved <- b
 						}
 					}
