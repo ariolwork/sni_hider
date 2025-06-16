@@ -14,3 +14,13 @@ func SetOK(s net.Conn) error {
 	}
 	return nil
 }
+
+func ReadMessage(s net.Conn) ([]byte, error) {
+	b := make([]byte, BATCHSIZE)
+	n, err := s.Read(b)
+	if err == nil {
+		b = b[:n]
+		return b, nil
+	}
+	return nil, err
+}

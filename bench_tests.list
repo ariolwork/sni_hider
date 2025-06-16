@@ -1,0 +1,3 @@
+# tests for throw sender
+net_tests internal/net_extentions
+net_tests internal/net_extentions

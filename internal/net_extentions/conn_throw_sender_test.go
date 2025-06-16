@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var buffer BufProcessor = New()
+
 type mock_conn struct {
 	rnd            *rand.Rand
 	sendingDelay   int
@@ -63,17 +65,15 @@ func BenchmarkDoubleWayContentThrowTest(b *testing.B) {
 	wg := &sync.WaitGroup{}
 	for i := 0; i < b.N; i++ {
 		rnd := rand.New(rand.NewSource(int64(i)))
-		for i := 0; i < 15000; i++ {
-			c1 := NewMockConnection(rnd)
-			c2 := NewMockConnection(rnd)
+		c1 := NewMockConnection(rnd)
+		c2 := NewMockConnection(rnd)
 
-			cwg := StartDoubleWayContentThrow(c1, c2, l)
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				cwg.Wait()
-			}()
-		}
+		cwg := StartDoubleWayContentThrow(c1, c2, l, buffer)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cwg.Wait()
+		}()
 	}
 	wg.Wait()
 }

@@ -10,11 +10,12 @@ import (
 )
 
 type tcpHandler struct {
-	l *log.Logger
+	l                 *log.Logger
+	connProcessorsBuf net_extentions.BufProcessor
 }
 
 func NewTcpHandler(l *log.Logger) Handler {
-	return &tcpHandler{l: l}
+	return &tcpHandler{l: l, connProcessorsBuf: net_extentions.New()}
 }
 
 func (h *tcpHandler) Handle(c net.Conn) error {
@@ -44,7 +45,7 @@ func (h *tcpHandler) Handle(c net.Conn) error {
 		}
 	}
 
-	wg := net_extentions.StartDoubleWayContentThrow(c, remoteConn, h.l)
+	wg := net_extentions.StartDoubleWayContentThrow(c, remoteConn, h.l, h.connProcessorsBuf)
 	wg.Wait()
 	return nil
 }
