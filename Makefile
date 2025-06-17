@@ -13,3 +13,6 @@ build:
 	@echo "building started"
 	go build -o bin/runner cmd/main.go
 	@echo "project builded"
+
+bench:
+	./sh/run_bench.sh bench_tests.list
