@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	GOROUTINESBUF = 500
+	GOROUTINESBUF = 1000
 )
 
 type Connection struct {
