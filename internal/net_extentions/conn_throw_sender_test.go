@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net"
 	"sync"
+	"tcp_sni_splitter/internal/net_extentions/rec_processors"
 	"testing"
 	"time"
 )
@@ -60,6 +61,7 @@ func (m *mock_writer) Write(p []byte) (n int, err error) {
 
 func BenchmarkDoubleWayContentThrowTest(b *testing.B) {
 	l := log.New(&mock_writer{}, "", 0)
+	conn_buf := rec_processors.New()
 	wg := &sync.WaitGroup{}
 	for i := 0; i < b.N; i++ {
 		rnd := rand.New(rand.NewSource(int64(i)))
@@ -67,7 +69,7 @@ func BenchmarkDoubleWayContentThrowTest(b *testing.B) {
 			c1 := NewMockConnection(rnd)
 			c2 := NewMockConnection(rnd)
 
-			cwg := StartDoubleWayContentThrow(c1, c2, l)
+			cwg := StartDoubleWayContentThrow(c1, c2, l, conn_buf)
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
