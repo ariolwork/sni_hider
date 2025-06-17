@@ -3,6 +3,7 @@ package connections_processor
 import (
 	"context"
 	"io"
+	"log"
 	"net"
 	"sync"
 )
@@ -12,23 +13,29 @@ const (
 )
 
 type Connection struct {
-	ToSend   chan Message
-	Recieved chan Message
-	C        net.Conn
-	Wg       *sync.WaitGroup
+	Name        string
+	ToSend      chan Message
+	Recieved    chan Message
+	SendedMem   uint64
+	RecievedMem uint64
+
+	C         net.Conn
+	SendingWg *sync.WaitGroup
 }
 
-func WrapConnection(c net.Conn) *Connection {
-	return &Connection{C: c, Recieved: make(chan Message, 10), ToSend: make(chan Message, 10), Wg: &sync.WaitGroup{}}
+func WrapConnection(name string, c net.Conn) *Connection {
+	return &Connection{Name: name, C: c, Recieved: make(chan Message, 10), ToSend: make(chan Message, 10), SendingWg: &sync.WaitGroup{}}
 }
 
-func WrapConnectionWithCustomWg(c net.Conn, wg *sync.WaitGroup) *Connection {
-	return &Connection{C: c, Recieved: make(chan Message, 10), ToSend: make(chan Message, 10), Wg: wg}
+func WrapConnectionWithCustomWg(name string, c net.Conn, wg *sync.WaitGroup) *Connection {
+	return &Connection{Name: name, C: c, Recieved: make(chan Message, 10), ToSend: make(chan Message, 10), SendingWg: wg}
 }
 
 type processorsBuf struct {
-	readCh     chan *Connection
-	writeCh    chan *Connection
+	readCh  chan *Connection
+	writeCh chan *Connection
+	stat    Statistics //it is ok for local development, but Grafana and Prometheus shoul be much more better)
+
 	cancelChan context.Context
 	wg         *sync.WaitGroup
 	cancel     func()
@@ -37,6 +44,7 @@ type processorsBuf struct {
 type BufProcessor interface {
 	Cancel()
 	ProceedConnection(inf *Connection)
+	Statistics() Statistics
 }
 
 func (b *processorsBuf) Cancel() {
@@ -49,11 +57,15 @@ func (b *processorsBuf) ProceedConnection(inf *Connection) {
 	b.writeCh <- inf
 }
 
+func (b *processorsBuf) Statistics() Statistics {
+	return b.stat
+}
+
 // обработку на чтение бы тоже в отдельную горутину
 
-func New() BufProcessor {
+func New(l *log.Logger) BufProcessor {
 	context, cancel := context.WithCancel(context.Background())
-	item := &processorsBuf{make(chan *Connection, GOROUTINESBUF*4), make(chan *Connection, GOROUTINESBUF*4), context, &sync.WaitGroup{}, cancel}
+	item := &processorsBuf{make(chan *Connection, GOROUTINESBUF*4), make(chan *Connection, GOROUTINESBUF*4), NewStatisticsMonitor(), context, &sync.WaitGroup{}, cancel}
 	item.wg.Add(GOROUTINESBUF * 2)
 	for i := 0; i < GOROUTINESBUF; i++ {
 		go func() {
@@ -64,10 +76,13 @@ func New() BufProcessor {
 					return
 				case i := <-item.writeCh:
 					for mes := range i.ToSend {
-						i.C.Write(mes.GetMessageBytes())
+						wrote, err := i.C.Write(mes.GetMessageBytes())
+						if err == nil {
+							i.SendedMem += uint64(wrote)
+						}
 						mes.Release()
 					}
-					i.Wg.Done()
+					i.SendingWg.Done()
 				}
 			}
 		}()
@@ -81,15 +96,17 @@ func New() BufProcessor {
 				case i := <-item.readCh:
 					for {
 						b, err := ReadMessage(i.C)
+
 						if err != nil {
 							if err == io.EOF {
 								//"write 1"
 							} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-								//write 2
+								l.Printf("Connection with %s error: %s", i.Name, err)
 							}
 							close(i.Recieved)
 							break
 						} else if len(b.GetMessageBytes()) != 0 {
+							i.RecievedMem += uint64(len(b.GetMessageBytes()))
 							i.Recieved <- b
 						}
 					}
