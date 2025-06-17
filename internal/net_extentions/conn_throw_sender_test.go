@@ -68,10 +68,12 @@ func BenchmarkDoubleWayContentThrowTest(b *testing.B) {
 		rnd := rand.New(rand.NewSource(int64(i)))
 		c1 := NewMockConnection(rnd)
 		c2 := NewMockConnection(rnd)
+
+		cwg := StartDoubleWayContentThrow(c1, c2, l, buffer)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			StartDoubleWayContentThrow("test", c1, c2, l, buffer)
+			cwg.Wait()
 		}()
 	}
 	wg.Wait()
