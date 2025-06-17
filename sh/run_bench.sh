@@ -17,7 +17,7 @@ while read -r test_name testfolder; do
     tput setaf 1 && echo "test  : $test_name" && tput sgr0
 
     # Запуск Go-тестов
-    tput setaf 4 && go test -bench=. -benchmem -count=1 && tput sgr0
+    tput setaf 4 && go test -bench=. -benchmem -count=3 && tput sgr0
     tput setaf 1 && echo "----------------------------------------------------------------------------" && tput sgr0
     cd "$current_folder"
 done  < "$CONFIG_FILE" 
@@ -28,7 +28,7 @@ if [[ !(-z "$test_name" || "$test_name" =~ ^#.*) ]]; then
     tput setaf 1 && echo "test  : $test_name" && tput sgr0
 
     # Запуск Go-тестов
-    tput setaf 4 && go test -bench=. -benchmem -count=1 && tput sgr0
+    tput setaf 4 && go test -bench=. -benchmem -count=3 && tput sgr0
     tput setaf 1 && echo "----------------------------------------------------------------------------" && tput sgr0
     cd "$current_folder"
 fi
