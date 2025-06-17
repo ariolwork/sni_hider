@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"math/rand"
+	"tcp_sni_splitter/internal/net_extentions/connections_processor"
 )
 
 var tlsHeader []byte = func() []byte {
@@ -24,7 +25,7 @@ func SplitTLSBySegments(b []byte) []byte {
 		//strange content, bad for seed
 		return b
 	}
-	result := make([]byte, 0, BATCHSIZE)
+	result := make([]byte, 0, connections_processor.BATCHSIZE)
 	rnd := *rand.New(rand.NewSource(int64(binary.BigEndian.Uint32(b[:4]))))
 	parts := 0
 	for len(b) > 0 {
