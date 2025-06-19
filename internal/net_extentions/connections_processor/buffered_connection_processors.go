@@ -101,7 +101,9 @@ func New(l *log.Logger) BufProcessor {
 							if err == io.EOF {
 								//"write 1"
 							} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-								l.Printf("Connection with %s error: %s", i.Name, err)
+								l.Printf("Connection [%s] with error timeouted: %s", i.Name, err)
+							} else {
+								l.Printf("Connection [%s] unknown error: %s", i.Name, err)
 							}
 							close(i.Recieved)
 							break
