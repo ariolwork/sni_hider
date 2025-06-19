@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 	"sync"
+
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -36,7 +38,7 @@ type processorsBuf struct {
 	writeCh chan *Connection
 	stat    Statistics //it is ok for local development, but Grafana and Prometheus shoul be much more better)
 
-	updateChansMutex *sync.Mutex
+	updateChansMutex *semaphore.Weighted
 	cancelChan       context.Context
 	wg               *sync.WaitGroup
 	cancel           func()
@@ -55,15 +57,15 @@ func (b *processorsBuf) Cancel() {
 }
 
 func (b *processorsBuf) ProceedConnection(inf *Connection) {
-	b.updateChansMutex.Lock()
-	defer b.updateChansMutex.Unlock()
+	b.updateChansMutex.Acquire(b.cancelChan, 1)
+	defer b.updateChansMutex.Release(1)
 	b.readCh <- inf
 	b.writeCh <- inf
 }
 
 func (b *processorsBuf) ProceedConnections(inf ...*Connection) {
-	b.updateChansMutex.Lock()
-	defer b.updateChansMutex.Unlock()
+	b.updateChansMutex.Acquire(b.cancelChan, 1)
+	defer b.updateChansMutex.Release(1)
 	for _, i := range inf {
 		b.readCh <- i
 		b.writeCh <- i
@@ -78,7 +80,7 @@ func (b *processorsBuf) Statistics() Statistics {
 
 func New(l *log.Logger) BufProcessor {
 	context, cancel := context.WithCancel(context.Background())
-	item := &processorsBuf{make(chan *Connection, GOROUTINESBUF*4), make(chan *Connection, GOROUTINESBUF*4), NewStatisticsMonitor(), &sync.Mutex{}, context, &sync.WaitGroup{}, cancel}
+	item := &processorsBuf{make(chan *Connection, GOROUTINESBUF*4), make(chan *Connection, GOROUTINESBUF*4), NewStatisticsMonitor(), semaphore.NewWeighted(50), context, &sync.WaitGroup{}, cancel}
 	item.wg.Add(GOROUTINESBUF * 2)
 	for i := 0; i < GOROUTINESBUF; i++ {
 		go func() {
