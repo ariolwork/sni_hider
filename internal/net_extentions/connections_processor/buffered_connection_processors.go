@@ -36,14 +36,16 @@ type processorsBuf struct {
 	writeCh chan *Connection
 	stat    Statistics //it is ok for local development, but Grafana and Prometheus shoul be much more better)
 
-	cancelChan context.Context
-	wg         *sync.WaitGroup
-	cancel     func()
+	updateChansMutex *sync.Mutex
+	cancelChan       context.Context
+	wg               *sync.WaitGroup
+	cancel           func()
 }
 
 type BufProcessor interface {
 	Cancel()
 	ProceedConnection(inf *Connection)
+	ProceedConnections(inf ...*Connection)
 	Statistics() Statistics
 }
 
@@ -53,8 +55,19 @@ func (b *processorsBuf) Cancel() {
 }
 
 func (b *processorsBuf) ProceedConnection(inf *Connection) {
+	b.updateChansMutex.Lock()
+	defer b.updateChansMutex.Unlock()
 	b.readCh <- inf
 	b.writeCh <- inf
+}
+
+func (b *processorsBuf) ProceedConnections(inf ...*Connection) {
+	b.updateChansMutex.Lock()
+	defer b.updateChansMutex.Unlock()
+	for _, i := range inf {
+		b.readCh <- i
+		b.writeCh <- i
+	}
 }
 
 func (b *processorsBuf) Statistics() Statistics {
@@ -65,7 +78,7 @@ func (b *processorsBuf) Statistics() Statistics {
 
 func New(l *log.Logger) BufProcessor {
 	context, cancel := context.WithCancel(context.Background())
-	item := &processorsBuf{make(chan *Connection, GOROUTINESBUF*4), make(chan *Connection, GOROUTINESBUF*4), NewStatisticsMonitor(), context, &sync.WaitGroup{}, cancel}
+	item := &processorsBuf{make(chan *Connection, GOROUTINESBUF*4), make(chan *Connection, GOROUTINESBUF*4), NewStatisticsMonitor(), &sync.Mutex{}, context, &sync.WaitGroup{}, cancel}
 	item.wg.Add(GOROUTINESBUF * 2)
 	for i := 0; i < GOROUTINESBUF; i++ {
 		go func() {
