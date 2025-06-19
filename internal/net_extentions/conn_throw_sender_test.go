@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var buffer connections_processor.BufProcessor = connections_processor.New()
+var buffer connections_processor.BufProcessor = connections_processor.New(log.New(&mock_writer{}, "", 0))
 
 type mock_conn struct {
 	rnd            *rand.Rand
@@ -70,8 +70,8 @@ func BenchmarkDoubleWayContentThrowTest(b *testing.B) {
 		c2 := NewMockConnection(rnd)
 		wg.Add(1)
 		go func() {
-			defer wg.Done()
 			StartDoubleWayContentThrow("test", c1, c2, l, buffer)
+			wg.Done()
 		}()
 	}
 	wg.Wait()
