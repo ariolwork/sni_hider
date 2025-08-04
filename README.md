@@ -4,5 +4,5 @@ It allows to escape SNI monitoring by providers and get access to some (restrict
 
 To Start: 
 - exec "make run" in project directory
-- redirest browser traffic by proxy on localhost:3020 using HTTP
+- redirect browser traffic by proxy on localhost:3020 using HTTP
 - DONE
