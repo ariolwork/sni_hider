@@ -20,7 +20,7 @@ func subscribeListener(log *log.Logger, port int) {
 	}
 	defer l.Close()
 
-	tcpHandler := handlers.NewTcpHandler(log)
+	tcpHandler := handlers.NewTcpHandler(log, false)
 	for {
 		// Wait for a connection.
 		conn, err := l.Accept()
