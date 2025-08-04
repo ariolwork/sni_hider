@@ -20,20 +20,22 @@ type tcpHandler struct {
 	connProcessorsBuf connections_processor.BufProcessor
 }
 
-func NewTcpHandler(l *log.Logger) Handler {
+func NewTcpHandler(l *log.Logger, includeStatistica bool) Handler {
 	handler := &tcpHandler{l: l, connProcessorsBuf: connections_processor.New(l)}
 	//log statistic
-	go func() {
-		for {
-			m := handler.connProcessorsBuf.Statistics().GetStatistic()
-			l.Printf("-------------------%s-------------------", time.Now().Local().UTC())
-			for _, item := range m {
-				l.Printf("%s   |   recieved: %.2f kb,  sended: %.2f kb", item.Name, float64(*item.Recieved)*1.0/1000, float64(*item.Sended)*1.0/1000)
+	if includeStatistica {
+		go func() {
+			for {
+				m := handler.connProcessorsBuf.Statistics().GetStatistic()
+				l.Printf("-------------------%s-------------------", time.Now().Local().UTC())
+				for _, item := range m {
+					l.Printf("%s   |   recieved: %.2f kb,  sended: %.2f kb", item.Name, float64(*item.Recieved)*1.0/1000, float64(*item.Sended)*1.0/1000)
+				}
+				l.Println("-----------------------------------------------------")
+				time.Sleep(TIMEBETWEENSTATISTICS)
 			}
-			l.Println("-----------------------------------------------------")
-			time.Sleep(TIMEBETWEENSTATISTICS)
-		}
-	}()
+		}()
+	}
 	return handler
 }
 

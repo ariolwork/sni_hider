@@ -2,34 +2,13 @@ package connections_processor
 
 import (
 	"context"
-	"io"
 	"log"
-	"net"
 	"sync"
 )
 
 const (
 	GOROUTINESBUF = 500
 )
-
-type Connection struct {
-	Name        string
-	ToSend      chan Message
-	Recieved    chan Message
-	SendedMem   uint64
-	RecievedMem uint64
-
-	C         net.Conn
-	SendingWg *sync.WaitGroup
-}
-
-func WrapConnection(name string, c net.Conn) *Connection {
-	return &Connection{Name: name, C: c, Recieved: make(chan Message, 10), ToSend: make(chan Message, 10), SendingWg: &sync.WaitGroup{}}
-}
-
-func WrapConnectionWithCustomWg(name string, c net.Conn, wg *sync.WaitGroup) *Connection {
-	return &Connection{Name: name, C: c, Recieved: make(chan Message, 10), ToSend: make(chan Message, 10), SendingWg: wg}
-}
 
 type processorsBuf struct {
 	readCh  chan *Connection
@@ -88,14 +67,7 @@ func New(l *log.Logger) BufProcessor {
 				case <-item.cancelChan.Done():
 					return
 				case i := <-item.writeCh:
-					for mes := range i.ToSend {
-						wrote, err := i.C.Write(mes.GetMessageBytes())
-						if err == nil {
-							i.SendedMem += uint64(wrote)
-						}
-						mes.Release()
-					}
-					i.SendingWg.Done()
+					i.Write(context, l)
 				}
 			}
 		}()
@@ -107,24 +79,7 @@ func New(l *log.Logger) BufProcessor {
 				case <-item.cancelChan.Done():
 					return
 				case i := <-item.readCh:
-					for {
-						b, err := ReadMessage(i.C)
-
-						if err != nil {
-							if err == io.EOF {
-								//"write 1"
-							} else if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
-								l.Printf("Connection [%s] with error timeouted: %s", i.Name, err)
-							} else {
-								l.Printf("Connection [%s] unknown error: %s", i.Name, err)
-							}
-							close(i.Recieved)
-							break
-						} else if len(b.GetMessageBytes()) != 0 {
-							i.RecievedMem += uint64(len(b.GetMessageBytes()))
-							i.Recieved <- b
-						}
-					}
+					i.Read(context, l)
 				}
 			}
 		}()
