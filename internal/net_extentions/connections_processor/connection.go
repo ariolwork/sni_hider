@@ -51,16 +51,14 @@ func (i *Connection) Read(cxt context.Context, l *log.Logger) {
 			} else {
 				l.Printf("Connection [%s] unknown error: %s", i.Name, err)
 			}
-			close(i.Recieved)
 			return
-		} else if len(b.GetMessageBytes()) != 0 {
+		} else if b != nil && len(b.GetMessageBytes()) != 0 {
 			i.RecievedMem += uint64(len(b.GetMessageBytes()))
 
 			select {
 			case i.Recieved <- b:
-				continue
 			case <-time.After(WRITE_TIMEOUT):
-				close(i.Recieved)
+				b.Release()
 				return
 			}
 		}
@@ -74,6 +72,10 @@ func (i *Connection) Write(cxt context.Context, l *log.Logger) {
 	for {
 		select {
 		case mes := <-i.ToSend:
+			if mes == nil {
+				continue
+			}
+
 			wrote, err := i.C.Write(mes.GetMessageBytes())
 			if err == nil {
 				i.SendedMem += uint64(wrote)

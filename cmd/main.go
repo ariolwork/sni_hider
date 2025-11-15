@@ -28,7 +28,7 @@ func subscribeListener(log *log.Logger, port int) {
 			log.Printf("Cannot accept connrection %s", err)
 		}
 		go func(c net.Conn) {
-			defer conn.Close()
+			defer c.Close()
 			err = tcpHandler.Handle(c)
 			if err != nil {
 				log.Printf("handler exception: %s", err)
