@@ -37,6 +37,7 @@ func WrapConnectionWithCustomWg(name string, c net.Conn, wg *sync.WaitGroup) *Co
 
 func (i *Connection) Read(cxt context.Context, l *log.Logger) {
 	i.C.SetReadDeadline(time.Now().Add(READ_TIMEOUT))
+
 	for {
 		b, err := ReadMessage(i.C)
 
@@ -51,24 +52,39 @@ func (i *Connection) Read(cxt context.Context, l *log.Logger) {
 				l.Printf("Connection [%s] unknown error: %s", i.Name, err)
 			}
 			close(i.Recieved)
-			break
+			return
 		} else if len(b.GetMessageBytes()) != 0 {
 			i.RecievedMem += uint64(len(b.GetMessageBytes()))
-			i.Recieved <- b
+
+			select {
+			case i.Recieved <- b:
+				continue
+			case <-time.After(WRITE_TIMEOUT):
+				close(i.Recieved)
+				return
+			}
 		}
 	}
 }
 
 func (i *Connection) Write(cxt context.Context, l *log.Logger) {
 	i.C.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
-	for mes := range i.ToSend {
-		wrote, err := i.C.Write(mes.GetMessageBytes())
-		if err == nil {
-			i.SendedMem += uint64(wrote)
-		} else if errors.Is(err, os.ErrDeadlineExceeded) {
-			l.Printf("Connection [%s] with internal timeouted to write: %s", i.Name, err)
+	timer := time.NewTimer(WRITE_TIMEOUT)
+
+	for {
+		select {
+		case mes := <-i.ToSend:
+			wrote, err := i.C.Write(mes.GetMessageBytes())
+			if err == nil {
+				i.SendedMem += uint64(wrote)
+			} else if errors.Is(err, os.ErrDeadlineExceeded) {
+				l.Printf("Connection [%s] with internal timeouted to write: %s", i.Name, err)
+			}
+			mes.Release()
+
+			timer.Reset(WRITE_TIMEOUT)
+		case <-timer.C:
+			return
 		}
-		mes.Release()
 	}
-	i.SendingWg.Done()
 }

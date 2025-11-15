@@ -68,6 +68,7 @@ func New(l *log.Logger) BufProcessor {
 					return
 				case i := <-item.writeCh:
 					i.Write(context, l)
+					i.SendingWg.Done()
 				}
 			}
 		}()
