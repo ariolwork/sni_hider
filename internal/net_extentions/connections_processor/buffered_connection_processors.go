@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	GOROUTINESBUF = 500
+	GOROUTINESBUF = 1000
 )
 
 type processorsBuf struct {
@@ -53,8 +53,6 @@ func (b *processorsBuf) Statistics() Statistics {
 	return b.stat
 }
 
-// обработку на чтение бы тоже в отдельную горутину
-
 func New(l *log.Logger) BufProcessor {
 	context, cancel := context.WithCancel(context.Background())
 	item := &processorsBuf{make(chan *Connection, GOROUTINESBUF*4), make(chan *Connection, GOROUTINESBUF*4), NewStatisticsMonitor(), &sync.Mutex{}, context, &sync.WaitGroup{}, cancel}
@@ -68,6 +66,7 @@ func New(l *log.Logger) BufProcessor {
 					return
 				case i := <-item.writeCh:
 					i.Write(context, l)
+					i.SendingWg.Done()
 				}
 			}
 		}()
@@ -80,6 +79,7 @@ func New(l *log.Logger) BufProcessor {
 					return
 				case i := <-item.readCh:
 					i.Read(context, l)
+					close(i.Recieved)
 				}
 			}
 		}()
