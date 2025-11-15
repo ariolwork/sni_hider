@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	READ_TIMEOUT  = time.Second * 5
-	WRITE_TIMEOUT = time.Second * 5
+	READ_TIMEOUT  = time.Second * 15
+	WRITE_TIMEOUT = time.Second * 15
 )
 
 type Connection struct {
@@ -71,9 +71,9 @@ func (i *Connection) Write(cxt context.Context, l *log.Logger) {
 
 	for {
 		select {
-		case mes := <-i.ToSend:
-			if mes == nil {
-				continue
+		case mes, ok := <-i.ToSend:
+			if !ok {
+				return
 			}
 
 			wrote, err := i.C.Write(mes.GetMessageBytes())
