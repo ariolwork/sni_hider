@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	READ_TIMEOUT  = time.Second * 15
-	WRITE_TIMEOUT = time.Second * 15
+	READ_TIMEOUT  = time.Second * 5
+	WRITE_TIMEOUT = time.Second * 5
 )
 
 type Connection struct {
