@@ -8,7 +8,6 @@ import (
 	"tcp_sni_splitter/internal/enumerable"
 	"tcp_sni_splitter/internal/net_extentions"
 	"tcp_sni_splitter/internal/net_extentions/connections_processor"
-	"time"
 )
 
 const (
@@ -16,26 +15,12 @@ const (
 )
 
 type tcpHandler struct {
-	l                 *log.Logger
-	connProcessorsBuf connections_processor.BufProcessor
+	l *log.Logger
 }
 
 func NewTcpHandler(l *log.Logger, includeStatistica bool) Handler {
-	handler := &tcpHandler{l: l, connProcessorsBuf: connections_processor.New(l)}
-	//log statistic
-	if includeStatistica {
-		go func() {
-			for {
-				m := handler.connProcessorsBuf.Statistics().GetStatistic()
-				l.Printf("-------------------%s-------------------", time.Now().Local().UTC())
-				for _, item := range m {
-					l.Printf("%s   |   recieved: %.2f kb,  sended: %.2f kb", item.Name, float64(*item.Recieved)*1.0/1000, float64(*item.Sended)*1.0/1000)
-				}
-				l.Println("-----------------------------------------------------")
-				time.Sleep(TIMEBETWEENSTATISTICS)
-			}
-		}()
-	}
+	handler := &tcpHandler{l: l}
+
 	return handler
 }
 
@@ -74,7 +59,7 @@ func (h *tcpHandler) Handle(c net.Conn) error {
 		}
 	}
 
-	net_extentions.StartDoubleWayContentThrow(targetPeer.GetTargetName(), c, remoteConn, h.l, h.connProcessorsBuf)
+	net_extentions.StartDoubleWayContentThrow(targetPeer.GetTargetName(), c, remoteConn, h.l, connections_processor.NewDefault(h.l))
 	return nil
 }
 
