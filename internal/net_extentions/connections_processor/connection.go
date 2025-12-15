@@ -13,7 +13,7 @@ import (
 
 const (
 	READ_TIMEOUT  = time.Second * 5
-	WRITE_TIMEOUT = time.Second * 5
+	WRITE_TIMEOUT = time.Minute * 5
 )
 
 type Connection struct {
@@ -67,26 +67,14 @@ func (i *Connection) Read(cxt context.Context, l *log.Logger) {
 
 func (i *Connection) Write(cxt context.Context, l *log.Logger) {
 	i.C.SetWriteDeadline(time.Now().Add(WRITE_TIMEOUT))
-	timer := time.NewTimer(WRITE_TIMEOUT)
 
-	for {
-		select {
-		case mes, ok := <-i.ToSend:
-			if !ok {
-				return
-			}
-
-			wrote, err := i.C.Write(mes.GetMessageBytes())
-			if err == nil {
-				i.SendedMem += uint64(wrote)
-			} else if errors.Is(err, os.ErrDeadlineExceeded) {
-				l.Printf("Connection [%s] with internal timeouted to write: %s", i.Name, err)
-			}
-			mes.Release()
-
-			timer.Reset(WRITE_TIMEOUT)
-		case <-timer.C:
-			return
+	for mes := range i.ToSend {
+		wrote, err := i.C.Write(mes.GetMessageBytes())
+		if err == nil {
+			i.SendedMem += uint64(wrote)
+		} else if errors.Is(err, os.ErrDeadlineExceeded) {
+			l.Printf("Connection [%s] with internal timeouted to write: %s", i.Name, err)
 		}
+		mes.Release()
 	}
 }
