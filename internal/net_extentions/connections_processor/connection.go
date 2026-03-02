@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	READ_TIMEOUT  = time.Second * 5
+	READ_TIMEOUT  = time.Minute * 5
 	WRITE_TIMEOUT = time.Minute * 5
 )
 

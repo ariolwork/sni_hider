@@ -1,13 +1,16 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net"
+
 	"tcp_sni_splitter/internal/enumerable"
 	"tcp_sni_splitter/internal/net_extentions"
 	"tcp_sni_splitter/internal/net_extentions/connections_processor"
+	"tcp_sni_splitter/internal/net_extentions/dns"
 )
 
 const (
@@ -15,11 +18,12 @@ const (
 )
 
 type tcpHandler struct {
-	l *log.Logger
+	l   *log.Logger
+	dns dns.Resolver
 }
 
 func NewTcpHandler(l *log.Logger, includeStatistica bool) Handler {
-	handler := &tcpHandler{l: l}
+	handler := &tcpHandler{l: l, dns: dns.New(l)}
 
 	return handler
 }
@@ -38,16 +42,16 @@ func (h *tcpHandler) Handle(c net.Conn) error {
 		// unknown first message for new connections
 		return nil
 	}
-	targetPeer, err := net_extentions.ExtractTargetPeer(b.GetMessageBytes())
+	targetPeer, err := net_extentions.ExtractTargetPeer(context.Background(), b.GetMessageBytes(), h.dns)
 	if err != nil {
-		return errors.New(fmt.Sprintf("failing extract target peer address %s", err))
+		return fmt.Errorf("failing extract target peer address %s", err)
 	}
 	b.Release()
 
 	// open target connection
 	remoteConn, err := net.Dial("tcp", targetPeer.GetTargetUrl())
 	if err != nil {
-		return errors.New(fmt.Sprintf("failing to open target tcp %s", err))
+		return fmt.Errorf("failing to open target tcp %s", err)
 	}
 	defer remoteConn.Close()
 
@@ -55,7 +59,7 @@ func (h *tcpHandler) Handle(c net.Conn) error {
 	if net_extentions.IsHttps(targetPeer) {
 		err := dropBySegments(c, remoteConn)
 		if err != nil {
-			return errors.New(fmt.Sprintf("failed to drop segmented tls content %s", err))
+			return fmt.Errorf("failed to drop segmented tls content %s", err)
 		}
 	}
 

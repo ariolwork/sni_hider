@@ -1,8 +1,11 @@
 package net_extentions
 
 import (
+	"context"
 	"strconv"
 	"strings"
+
+	"tcp_sni_splitter/internal/net_extentions/dns"
 )
 
 type TargetPeer interface {
@@ -18,7 +21,7 @@ type peer struct {
 }
 
 func (p *peer) GetTargetUrl() string {
-	return p.url
+	return p.name + ":" + strconv.Itoa(p.port)
 }
 
 func (p *peer) GetTargetPort() int {
@@ -29,12 +32,17 @@ func (p *peer) GetTargetName() string {
 	return p.name
 }
 
-func ExtractTargetPeer(r []byte) (TargetPeer, error) {
+func ExtractTargetPeer(ctx context.Context, r []byte, resolver dns.Resolver) (TargetPeer, error) {
 	p := &peer{}
 	header := string(r[:500])
 	p.url = strings.Split(header, " ")[1]
 	addrAndPort := strings.Split(p.url, ":")[:2]
 	p.name = addrAndPort[0]
+	if p.name == "www.youtube.com" || p.name == "www.instagram.com" {
+		p.name = resolver.Resolve(ctx, p.name)
+		//p.name = "172.217.18.206"
+	}
+
 	port, err := strconv.Atoi(addrAndPort[1])
 	p.port = port
 	if err != nil {
