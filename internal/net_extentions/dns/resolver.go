@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/ariolwork/collections/slices"
 )
 
 type answerRecord struct {
@@ -54,11 +56,13 @@ func (c *client) Resolve(ctx context.Context, name string) string {
 		return name
 	}
 
-	namesTable := ToMap(ips.Answer, func(el answerRecord) string { return el.Name })
+	namesTable := slices.ToMapBuckets(ips.Answer, func(r answerRecord) string {
+		return r.Name
+	})
 
 	for {
 		if data, ok := namesTable[name]; ok {
-			name = data.Data
+			name = data[0].Data
 		} else {
 			return name
 		}
